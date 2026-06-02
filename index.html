@@ -130,6 +130,8 @@ const MAX_SEATS=10;
 const door={x:230,y:688};
 
 const FACES=['🧑','👵','👴','🧓','👩','👨','🧕','👨‍🦰','👩‍🦱','🧔'];
+const SKINS=['#f2c9a0','#eab98c','#dca06f','#c98a5c','#a86f47','#f6d9bd'];
+const HAIRS=['#2a1c0e','#141210','#5a3a22','#7a5230','#9a9a9a','#caa84a','#b5651d','#6b3b1f'];
 const SYMPTOMS=['아야야','빨리 치료해줘!','너무 아파','샤갈!!!','아이고 아이고'];
 const FEE_REG=15000, FEE_HERB=100000, FEE_CHUNA=50000;
 const TREAT_TIME=300, HERB_TREAT=480, WAIT_PATIENCE=1700, COLLECT_CD=22;
@@ -195,7 +197,7 @@ function trySpawn(){
   let herbal=false, chu=false, coffee=false;
   if(r<herbCh) herbal=true; else if(r<herbCh+chunaCh) chu=true; else if(Math.random()<0.06) coffee=true;
   const fee=herbal?FEE_HERB:chu?FEE_CHUNA:FEE_REG;
-  const p={ id:nextId++, x:door.x, y:H+18, state:'in', emoji:rand(FACES), symptom:rand(SYMPTOMS), herbal:herbal, chuna:chu, coffee:coffee, fee:fee, treat:0, patience:WAIT_PATIENCE, leaderRef:null, claimedBy:null, waitSpot:si, paySpot:-1, bedRef:null, payWait:0 };
+  const p={ id:nextId++, x:door.x, y:H+18, state:'in', emoji:rand(FACES), skin:rand(SKINS), hair:rand(HAIRS), symptom:rand(SYMPTOMS), herbal:herbal, chuna:chu, coffee:coffee, fee:fee, treat:0, patience:WAIT_PATIENCE, leaderRef:null, claimedBy:null, waitSpot:si, paySpot:-1, bedRef:null, payWait:0 };
   waitSpots[si].taken=p.id; patients.push(p);
 }
 function assignPay(p){ const i=payQueue.findIndex(s=>!s.taken); if(i>=0){ p.paySpot=i; payQueue[i].taken=p.id; return true; } return false; }
@@ -320,13 +322,29 @@ function update(){
 
 // ===== 그리기 =====
 function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
-function person(x,y,ring,emoji,r){ r=r||15;
-  const bob=Math.sin(elapsed*0.13+(x*0.05+y*0.04))*1.1; const yy=y+bob;
-  ctx.fillStyle='rgba(0,0,0,0.14)'; ctx.beginPath(); ctx.ellipse(x,y+r*0.92,r*0.82,r*0.34,0,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle=ring; ctx.beginPath(); ctx.arc(x,yy,r,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle='rgba(255,255,255,0.22)'; ctx.beginPath(); ctx.arc(x,yy-r*0.3,r*0.66,0,Math.PI*2); ctx.fill();
-  ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,0.85)'; ctx.beginPath(); ctx.arc(x,yy,r,0,Math.PI*2); ctx.stroke();
-  ctx.font=(r+5)+'px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(emoji,x,yy+1);
+function rr2(x,y,w,h,rad){ if(w<=0||h<=0) return; roundRect(x,y,w,h,Math.max(0,Math.min(rad,w/2,h/2))); ctx.fill(); }
+function pxPerson(x,y,r,o){
+  o=o||{};
+  const skin=o.skin||'#f0c49b', hair=o.hair||'#33240f', shirt=o.shirt||'#e7c9a0', pants=o.pants||'#414652';
+  const bob=Math.sin(elapsed*0.13+(x*0.06+y*0.05))*(r*0.05); const yy=y+bob;
+  const headR=r*0.52, headCY=yy-r*0.62;
+  const tTop=yy-r*0.12, tBot=yy+r*0.6, tW=r*1.16, tX=x-tW/2;
+  ctx.fillStyle='rgba(0,0,0,0.16)'; ctx.beginPath(); ctx.ellipse(x,y+r*0.92,r*0.78,r*0.28,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=pants; ctx.fillRect(x-tW*0.36,tBot-r*0.04,tW*0.3,r*0.34); ctx.fillRect(x+tW*0.06,tBot-r*0.04,tW*0.3,r*0.34);
+  ctx.fillStyle=o.shoes||'#2a2d33'; ctx.fillRect(x-tW*0.4,tBot+r*0.26,tW*0.34,r*0.12); ctx.fillRect(x+tW*0.06,tBot+r*0.26,tW*0.34,r*0.12);
+  ctx.fillStyle=shirt; rr2(tX-r*0.22,tTop+r*0.04,r*0.3,r*0.62,r*0.12); rr2(tX+tW-r*0.08,tTop+r*0.04,r*0.3,r*0.62,r*0.12);
+  ctx.fillStyle=skin; rr2(tX-r*0.2,tTop+r*0.6,r*0.28,r*0.22,r*0.08); rr2(tX+tW-r*0.08,tTop+r*0.6,r*0.28,r*0.22,r*0.08);
+  ctx.fillStyle=shirt; rr2(tX,tTop,tW,tBot-tTop,r*0.2);
+  ctx.fillStyle='rgba(0,0,0,0.08)'; rr2(x,tTop,tW/2,tBot-tTop,r*0.2);
+  ctx.fillStyle=skin; ctx.fillRect(x-r*0.15,headCY+headR*0.55,r*0.3,r*0.3);
+  ctx.fillStyle=skin; rr2(x-headR,headCY-headR,headR*2,headR*2,headR*0.55);
+  ctx.fillStyle=hair; rr2(x-headR,headCY-headR,headR*2,headR*0.92,headR*0.55); ctx.fillRect(x-headR,headCY-headR*0.45,headR*0.32,headR*0.85); ctx.fillRect(x+headR-headR*0.32,headCY-headR*0.45,headR*0.32,headR*0.85);
+  const eS=Math.max(1.6,headR*0.26), eY=headCY+headR*0.02, eDx=headR*0.4;
+  ctx.fillStyle='#2b2b2b'; ctx.fillRect(x-eDx-eS/2,eY,eS,eS*1.2); ctx.fillRect(x+eDx-eS/2,eY,eS,eS*1.2);
+  if(o.acc==='coat'){ ctx.fillStyle='#fdfeff'; rr2(tX-r*0.22,tTop+r*0.04,r*0.3,r*0.6,r*0.12); rr2(tX+tW-r*0.08,tTop+r*0.04,r*0.3,r*0.6,r*0.12); rr2(tX,tTop,tW,tBot-tTop,r*0.2); ctx.strokeStyle='rgba(110,125,150,0.45)'; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(x,tTop+r*0.02); ctx.lineTo(x,tBot-r*0.04); ctx.stroke(); ctx.fillStyle=shirt; rr2(x-r*0.13,tTop,r*0.26,r*0.34,2); ctx.fillStyle='#2b2b2b'; ctx.fillRect(x-r*0.02,tTop+r*0.16,r*0.05,r*0.16); }
+  else if(o.acc==='nurse'){ ctx.fillStyle='#ffffff'; rr2(x-headR*0.75,headCY-headR*1.08,headR*1.5,headR*0.5,2); ctx.fillStyle='#e03131'; ctx.fillRect(x-headR*0.09,headCY-headR*1.0,headR*0.18,headR*0.34); ctx.fillRect(x-headR*0.24,headCY-headR*0.86,headR*0.48,headR*0.12); }
+  else if(o.acc==='cap'){ ctx.fillStyle=o.capColor||'#2f6f4f'; rr2(x-headR,headCY-headR*1.06,headR*2,headR*0.56,headR*0.4); ctx.fillRect(x-headR*1.15,headCY-headR*0.56,headR*0.7,headR*0.16); }
+  else if(o.acc==='angry'){ ctx.strokeStyle='#6f1010'; ctx.lineWidth=Math.max(1.6,r*0.11); ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(x-eDx-eS*0.9,eY-eS*0.7); ctx.lineTo(x-eDx+eS*0.7,eY-eS*0.05); ctx.moveTo(x+eDx+eS*0.9,eY-eS*0.7); ctx.lineTo(x+eDx-eS*0.7,eY-eS*0.05); ctx.stroke(); ctx.lineCap='butt'; }
 }
 function bubble(x,y,txt,bg){ ctx.font='700 11px sans-serif'; const w=ctx.measureText(txt).width+12;
   ctx.fillStyle=bg||'rgba(0,0,0,0.7)'; roundRect(x-w/2,y-28,w,16,6); ctx.fill();
@@ -386,7 +404,7 @@ function drawBedObj(b,kind){ kind=kind||'reg'; const herb=kind==='herb', chu=kin
   const bx=x+w*0.35; ctx.fillStyle=blanket; roundRect(bx,y+8,x+w-8-bx,h-16,8); ctx.fill();
   ctx.strokeStyle=frameLt; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(bx+4,y+9); ctx.lineTo(bx+4,y+h-9); ctx.stroke();
   if(b.occupant){ const p=getP(b.occupant);
-    if(p){ person(x+w*0.24,b.y,herb?'#aad79a':chu?'#e8bd91':'#bcd8c8',p.emoji,Math.min(13,h*0.26));
+    if(p){ pxPerson(x+w*0.24,b.y,Math.min(13,h*0.26),{skin:p.skin,hair:p.hair,shirt:herb?'#7fc77f':chu?'#e6a45a':'#7fb0e0'});
       let pct; if(chu){ pct=(chuna.active&&chuna.pid===p.id)?chuna.idx/chuna.seq.length:0; } else if(herb){ pct=(herbGame.active&&herbGame.pid===p.id)?herbGame.picked.length/herbGame.need.length:0; } else { pct=1-p.treat/totalTreat(p); }
       ctx.fillStyle='rgba(0,0,0,0.13)'; roundRect(x+9,y+h-9,w-18,5,2); ctx.fill();
       ctx.fillStyle=herb?'#2f9e44':chu?'#d98a2b':'#2bb673'; roundRect(x+9,y+h-9,(w-18)*pct,5,2); ctx.fill();
@@ -449,7 +467,7 @@ function draw(){
     let ring = p.herbal?'#7bc47f':p.chuna?'#e8a86a':p.coffee?'#c8945a':'#e7c9a0';
     if(p.state==='wait' && !p.herbal && !p.chuna && !p.coffee) ring=p.patience<400?'#e06a6a':'#f0c987';
     if((p.state==='pay'||p.state==='todesk') && !p.herbal && !p.chuna) ring='#9ec8f0';
-    person(p.x,p.y,ring,p.emoji,15);
+    pxPerson(p.x,p.y,15,{skin:p.skin,hair:p.hair,shirt:ring});
     if(p.state==='wait'){ const wt=p.herbal?'🌿 한약방으로':p.chuna?'💪 추나실로':p.coffee?'☕ 커피 줄게요!':'🙋 '+(p.symptom||'안내'); const wb=p.herbal?'rgba(40,130,60,0.88)':p.chuna?'rgba(180,110,40,0.9)':p.coffee?'rgba(150,90,40,0.9)':(p.patience<400?'rgba(200,50,50,0.85)':'rgba(0,0,0,0.7)'); bubble(p.x,p.y,wt,wb);
       const pct=Math.max(0,p.patience/WAIT_PATIENCE);
       ctx.fillStyle='rgba(0,0,0,0.15)'; ctx.fillRect(p.x-15,p.y+16,30,4);
@@ -457,8 +475,8 @@ function draw(){
     } else if(p.state==='follow') bubble(p.x,p.y,p.herbal?'➡ 한약방으로':p.chuna?'➡ 추나실로':'➡ 따라가는 중',p.herbal?'rgba(40,130,60,0.85)':p.chuna?'rgba(180,110,40,0.85)':'rgba(60,120,200,0.8)');
     else if(p.state==='pay'||p.state==='todesk') bubble(p.x,p.y,p.herbal?'💵 10만원':p.chuna?'💵 5만원':'💵 수납','rgba(40,120,80,0.85)');
   });
-  guides.forEach(g=> person(g.x,g.y,'#8fb6e8','💁‍♀️',15));
-  cashiers.forEach(c=> person(c.x,c.y,'#8fd8a8','🧑‍💼',15));
+  guides.forEach(g=> pxPerson(g.x,g.y,15,{skin:'#f0c49b',hair:'#5a3a22',shirt:'#8fb6e8',acc:'nurse'}));
+  cashiers.forEach(c=> pxPerson(c.x,c.y,15,{skin:'#e8b58a',hair:'#222018',shirt:'#5fae7f',acc:'cap',capColor:'#2f7f57'}));
   drawHater();
   drawPlayer();
   ctx.fillStyle='#7a5c00'; ctx.font='700 10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('원장님', player.x, player.y+38);
@@ -501,7 +519,7 @@ function drawHater(){
   const ox=hater.flash>0?(Math.random()*6-3):0, oy=hater.flash>0?(Math.random()*6-3):0;
   const sx=hater.x+ox, sy=hater.y+oy;
   ctx.fillStyle='rgba(224,49,49,'+(0.16+0.1*Math.abs(Math.sin(elapsed*0.2)))+')'; ctx.beginPath(); ctx.arc(sx,sy,34,0,Math.PI*2); ctx.fill();
-  person(sx,sy,'#e03131','😡',21);
+  pxPerson(sx,sy,21,{skin:'#e8b58a',hair:'#141210',shirt:'#b5341f',acc:'angry'});
   ctx.fillStyle='#c92a2a'; ctx.font='700 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('한까의사',sx,sy+32);
   const pct=Math.max(0,1-hater.hits/hater.need);
   ctx.fillStyle='rgba(0,0,0,0.2)'; roundRect(sx-32,sy-44,64,8,4); ctx.fill();
@@ -518,15 +536,8 @@ function drawSeat(x,y){
 }
 function drawPlayer(){
   const x=player.x, y=player.y, r=21;
-  const bob=Math.sin(elapsed*0.2)*1.4, yy=y+bob;
-  ctx.fillStyle='rgba(255,216,77,0.16)'; ctx.beginPath(); ctx.arc(x,yy,r+9,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle='rgba(0,0,0,0.16)'; ctx.beginPath(); ctx.ellipse(x,y+r*0.95,r*0.9,r*0.36,0,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle='#fdfdff'; roundRect(x-r*0.74,yy+r*0.4,r*1.48,r*1.0,5); ctx.fill();
-  ctx.strokeStyle='rgba(120,135,160,0.45)'; ctx.lineWidth=1.4; roundRect(x-r*0.74,yy+r*0.4,r*1.48,r*1.0,5); ctx.stroke();
-  ctx.fillStyle='#ffd84d'; ctx.beginPath(); ctx.arc(x,yy,r,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle='rgba(255,255,255,0.25)'; ctx.beginPath(); ctx.arc(x,yy-r*0.3,r*0.62,0,Math.PI*2); ctx.fill();
-  ctx.lineWidth=2.4; ctx.strokeStyle='#fff'; ctx.beginPath(); ctx.arc(x,yy,r,0,Math.PI*2); ctx.stroke();
-  ctx.font='27px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🧑',x,yy+1);
+  ctx.fillStyle='rgba(255,216,77,0.20)'; ctx.beginPath(); ctx.arc(x,y-r*0.1,r+8,0,Math.PI*2); ctx.fill();
+  pxPerson(x,y,r,{skin:'#f0c49b',hair:'#33240f',shirt:'#4f93cf',acc:'coat'});
 }
 function drawChunaUI(){
   if(!chuna.active) return;
