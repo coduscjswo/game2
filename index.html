@@ -132,6 +132,7 @@ const door={x:230,y:688};
 const FACES=['🧑','👵','👴','🧓','👩','👨','🧕','👨‍🦰','👩‍🦱','🧔'];
 const SKINS=['#f2c9a0','#eab98c','#dca06f','#c98a5c','#a86f47','#f6d9bd'];
 const HAIRS=['#2a1c0e','#141210','#5a3a22','#7a5230','#9a9a9a','#caa84a','#b5651d','#6b3b1f'];
+const PTYPES=[{k:'grandma',scale:0.92,hair:'#d6d6d6',style:'bun'},{k:'grandpa',scale:0.92,hair:'#e4e4e4',style:'bald',facial:'mustache'},{k:'man',scale:1.0,style:'short',facial:'mustache'},{k:'woman',scale:0.98,style:'long'},{k:'girl',scale:0.72,style:'pigtail'},{k:'boy',scale:0.74,style:'short'},{k:'youth',scale:1.0,style:'short'}];
 const SYMPTOMS=['아야야','빨리 치료해줘!','너무 아파','샤갈!!!','아이고 아이고'];
 const FEE_REG=15000, FEE_HERB=100000, FEE_CHUNA=50000;
 const TREAT_TIME=300, HERB_TREAT=480, WAIT_PATIENCE=1700, COLLECT_CD=22;
@@ -197,7 +198,7 @@ function trySpawn(){
   let herbal=false, chu=false, coffee=false;
   if(r<herbCh) herbal=true; else if(r<herbCh+chunaCh) chu=true; else if(Math.random()<0.06) coffee=true;
   const fee=herbal?FEE_HERB:chu?FEE_CHUNA:FEE_REG;
-  const p={ id:nextId++, x:door.x, y:H+18, state:'in', emoji:rand(FACES), skin:rand(SKINS), hair:rand(HAIRS), symptom:rand(SYMPTOMS), herbal:herbal, chuna:chu, coffee:coffee, fee:fee, treat:0, patience:WAIT_PATIENCE, leaderRef:null, claimedBy:null, waitSpot:si, paySpot:-1, bedRef:null, payWait:0 };
+  const p={ id:nextId++, x:door.x, y:H+18, state:'in', emoji:rand(FACES), ptype:rand(PTYPES), skin:rand(SKINS), hair:rand(HAIRS), symptom:rand(SYMPTOMS), herbal:herbal, chuna:chu, coffee:coffee, fee:fee, treat:0, patience:WAIT_PATIENCE, leaderRef:null, claimedBy:null, waitSpot:si, paySpot:-1, bedRef:null, payWait:0 };
   waitSpots[si].taken=p.id; patients.push(p);
 }
 function assignPay(p){ const i=payQueue.findIndex(s=>!s.taken); if(i>=0){ p.paySpot=i; payQueue[i].taken=p.id; return true; } return false; }
@@ -325,7 +326,11 @@ function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w
 function rr2(x,y,w,h,rad){ if(w<=0||h<=0) return; roundRect(x,y,w,h,Math.max(0,Math.min(rad,w/2,h/2))); ctx.fill(); }
 function pxPerson(x,y,r,o){
   o=o||{};
-  const skin=o.skin||'#f0c49b', hair=o.hair||'#33240f', shirt=o.shirt||'#e7c9a0', pants=o.pants||'#414652';
+  const pt=o.ptype||null;
+  if(pt&&pt.scale) r=r*pt.scale;
+  const skin=o.skin||'#f0c49b'; let hair=o.hair||'#33240f'; const shirt=o.shirt||'#e7c9a0', pants=o.pants||'#414652';
+  if(pt&&pt.hair) hair=pt.hair;
+  const style=(pt&&pt.style)||'short';
   const bob=Math.sin(elapsed*0.13+(x*0.06+y*0.05))*(r*0.05); const yy=y+bob;
   const headR=r*0.52, headCY=yy-r*0.62;
   const tTop=yy-r*0.12, tBot=yy+r*0.6, tW=r*1.16, tX=x-tW/2;
@@ -338,9 +343,15 @@ function pxPerson(x,y,r,o){
   ctx.fillStyle='rgba(0,0,0,0.08)'; rr2(x,tTop,tW/2,tBot-tTop,r*0.2);
   ctx.fillStyle=skin; ctx.fillRect(x-r*0.15,headCY+headR*0.55,r*0.3,r*0.3);
   ctx.fillStyle=skin; rr2(x-headR,headCY-headR,headR*2,headR*2,headR*0.55);
-  ctx.fillStyle=hair; rr2(x-headR,headCY-headR,headR*2,headR*0.92,headR*0.55); ctx.fillRect(x-headR,headCY-headR*0.45,headR*0.32,headR*0.85); ctx.fillRect(x+headR-headR*0.32,headCY-headR*0.45,headR*0.32,headR*0.85);
+  ctx.fillStyle=hair;
+  if(style==='long'||style==='ponytail'||style==='pigtail'){ rr2(x-headR*1.18,headCY-headR*0.15,headR*0.5,headR*1.05,headR*0.22); rr2(x+headR*0.68,headCY-headR*0.15,headR*0.5,headR*1.05,headR*0.22); }
+  if(style==='bald'){ rr2(x-headR,headCY-headR*0.15,headR*0.26,headR*0.66,headR*0.18); rr2(x+headR-headR*0.26,headCY-headR*0.15,headR*0.26,headR*0.66,headR*0.18); rr2(x-headR*0.46,headCY-headR,headR*0.92,headR*0.3,headR*0.16); }
+  else { rr2(x-headR,headCY-headR,headR*2,headR*0.92,headR*0.55); ctx.fillRect(x-headR,headCY-headR*0.45,headR*0.32,headR*0.85); ctx.fillRect(x+headR-headR*0.32,headCY-headR*0.45,headR*0.32,headR*0.85); }
+  if(style==='bun'){ ctx.beginPath(); ctx.arc(x,headCY-headR*1.04,headR*0.36,0,Math.PI*2); ctx.fill(); }
+  if(style==='pigtail'){ ctx.beginPath(); ctx.arc(x-headR*1.0,headCY+headR*0.34,headR*0.34,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x+headR*1.0,headCY+headR*0.34,headR*0.34,0,Math.PI*2); ctx.fill(); }
   const eS=Math.max(1.6,headR*0.26), eY=headCY+headR*0.02, eDx=headR*0.4;
   ctx.fillStyle='#2b2b2b'; ctx.fillRect(x-eDx-eS/2,eY,eS,eS*1.2); ctx.fillRect(x+eDx-eS/2,eY,eS,eS*1.2);
+  if(pt&&pt.facial==='mustache'){ ctx.fillStyle=style==='bald'?'#cfcfcf':'rgba(80,55,30,0.9)'; ctx.fillRect(x-headR*0.42,headCY+headR*0.52,headR*0.84,headR*0.16); }
   if(o.acc==='coat'){ ctx.fillStyle='#fdfeff'; rr2(tX-r*0.22,tTop+r*0.04,r*0.3,r*0.6,r*0.12); rr2(tX+tW-r*0.08,tTop+r*0.04,r*0.3,r*0.6,r*0.12); rr2(tX,tTop,tW,tBot-tTop,r*0.2); ctx.strokeStyle='rgba(110,125,150,0.45)'; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(x,tTop+r*0.02); ctx.lineTo(x,tBot-r*0.04); ctx.stroke(); ctx.fillStyle=shirt; rr2(x-r*0.13,tTop,r*0.26,r*0.34,2); ctx.fillStyle='#2b2b2b'; ctx.fillRect(x-r*0.02,tTop+r*0.16,r*0.05,r*0.16); }
   else if(o.acc==='nurse'){ ctx.fillStyle='#ffffff'; rr2(x-headR*0.75,headCY-headR*1.08,headR*1.5,headR*0.5,2); ctx.fillStyle='#e03131'; ctx.fillRect(x-headR*0.09,headCY-headR*1.0,headR*0.18,headR*0.34); ctx.fillRect(x-headR*0.24,headCY-headR*0.86,headR*0.48,headR*0.12); }
   else if(o.acc==='cap'){ ctx.fillStyle=o.capColor||'#2f6f4f'; rr2(x-headR,headCY-headR*1.06,headR*2,headR*0.56,headR*0.4); ctx.fillRect(x-headR*1.15,headCY-headR*0.56,headR*0.7,headR*0.16); }
@@ -404,7 +415,7 @@ function drawBedObj(b,kind){ kind=kind||'reg'; const herb=kind==='herb', chu=kin
   const bx=x+w*0.35; ctx.fillStyle=blanket; roundRect(bx,y+8,x+w-8-bx,h-16,8); ctx.fill();
   ctx.strokeStyle=frameLt; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(bx+4,y+9); ctx.lineTo(bx+4,y+h-9); ctx.stroke();
   if(b.occupant){ const p=getP(b.occupant);
-    if(p){ pxPerson(x+w*0.24,b.y,Math.min(13,h*0.26),{skin:p.skin,hair:p.hair,shirt:herb?'#7fc77f':chu?'#e6a45a':'#7fb0e0'});
+    if(p){ pxPerson(x+w*0.24,b.y,Math.min(13,h*0.26),{skin:p.skin,hair:p.hair,shirt:herb?'#7fc77f':chu?'#e6a45a':'#7fb0e0',ptype:p.ptype});
       let pct; if(chu){ pct=(chuna.active&&chuna.pid===p.id)?chuna.idx/chuna.seq.length:0; } else if(herb){ pct=(herbGame.active&&herbGame.pid===p.id)?herbGame.picked.length/herbGame.need.length:0; } else { pct=1-p.treat/totalTreat(p); }
       ctx.fillStyle='rgba(0,0,0,0.13)'; roundRect(x+9,y+h-9,w-18,5,2); ctx.fill();
       ctx.fillStyle=herb?'#2f9e44':chu?'#d98a2b':'#2bb673'; roundRect(x+9,y+h-9,(w-18)*pct,5,2); ctx.fill();
@@ -467,7 +478,7 @@ function draw(){
     let ring = p.herbal?'#7bc47f':p.chuna?'#e8a86a':p.coffee?'#c8945a':'#e7c9a0';
     if(p.state==='wait' && !p.herbal && !p.chuna && !p.coffee) ring=p.patience<400?'#e06a6a':'#f0c987';
     if((p.state==='pay'||p.state==='todesk') && !p.herbal && !p.chuna) ring='#9ec8f0';
-    pxPerson(p.x,p.y,15,{skin:p.skin,hair:p.hair,shirt:ring});
+    pxPerson(p.x,p.y,15,{skin:p.skin,hair:p.hair,shirt:ring,ptype:p.ptype});
     if(p.state==='wait'){ const wt=p.herbal?'🌿 한약방으로':p.chuna?'💪 추나실로':p.coffee?'☕ 커피 줄게요!':'🙋 '+(p.symptom||'안내'); const wb=p.herbal?'rgba(40,130,60,0.88)':p.chuna?'rgba(180,110,40,0.9)':p.coffee?'rgba(150,90,40,0.9)':(p.patience<400?'rgba(200,50,50,0.85)':'rgba(0,0,0,0.7)'); bubble(p.x,p.y,wt,wb);
       const pct=Math.max(0,p.patience/WAIT_PATIENCE);
       ctx.fillStyle='rgba(0,0,0,0.15)'; ctx.fillRect(p.x-15,p.y+16,30,4);
