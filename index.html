@@ -73,7 +73,7 @@
     <p>당신은 원장님! <b>방향키 / WASD</b> 또는 <b>화면 드래그</b>로 직접 움직이세요.<br><br>
     1️⃣ 입구의 <b>환자(🙋)</b>에게 다가가면 따라와요 → 빈 <b>침대</b>로 데려가면 진료 시작.<br>
     2️⃣ 진료 끝난 <b>💵 환자</b>는 데스크 앞으로. 데스크 근처로 가면 자동 수납!<br>
-    3️⃣ 🌿 <b>한약 환자</b>(₩100,000) · 💪 <b>추나 환자</b>(₩50,000)는 <b>원장만</b> 안내 가능! 추나는 방향키 7개를 똑같이 눌러야 돼요.<br>
+    3️⃣ 🌿 <b>한약 환자</b>(₩100,000) · 💪 <b>추나 환자</b>(₩50,000)는 <b>원장만</b> 안내 가능! 추나는 방향키 7개를 똑같이 눌러야 돼요. 🩸 침대 위 환자가 <b>부항</b>을 원하면 버튼을 눌러 혈자리에 컵을 놓아요 (+₩10,000)!<br>
     4️⃣ ⭐ <b>평판</b>이 오르면 환자가 더 많이 와요. 빡쳐서 나가면 평판 ↓.<br>
     5️⃣ 돈 모아 <b>침대·좌석·안내간조·수납간조</b>을 늘리고, ⏱ <b>3분</b> 안에 최대한 많이 벌어보세요!</p>
     <input id="clinicInput" placeholder="한의원 이름 (예: 행복)" maxlength="6" style="padding:9px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.12); color:#fff; font-size:15px; width:200px; text-align:center;" />
@@ -134,7 +134,7 @@ const SKINS=['#f2c9a0','#eab98c','#dca06f','#c98a5c','#a86f47','#f6d9bd'];
 const HAIRS=['#2a1c0e','#141210','#5a3a22','#7a5230','#9a9a9a','#caa84a','#b5651d','#6b3b1f'];
 const PTYPES=[{k:'grandma',scale:0.92,hair:'#d6d6d6',style:'bun'},{k:'grandpa',scale:0.92,hair:'#e4e4e4',style:'bald',facial:'mustache'},{k:'man',scale:1.0,style:'short',facial:'mustache'},{k:'woman',scale:0.98,style:'long'},{k:'girl',scale:0.72,style:'pigtail'},{k:'boy',scale:0.74,style:'short'},{k:'youth',scale:1.0,style:'short'}];
 const SYMPTOMS=['아야야','빨리 치료해줘!','너무 아파','샤갈!!!','아이고 아이고'];
-const FEE_REG=15000, FEE_HERB=100000, FEE_CHUNA=50000;
+const FEE_REG=15000, FEE_HERB=100000, FEE_CHUNA=50000, FEE_CUP_BONUS=10000;
 const TREAT_TIME=300, HERB_TREAT=480, WAIT_PATIENCE=1700, COLLECT_CD=22;
 const REP_GAIN_REG=1.2, REP_GAIN_HERB=3.5, REP_GAIN_CHUNA=2.5, REP_LOSS=4.5;
 const DIRS=['up','down','left','right'];
@@ -143,6 +143,8 @@ const hater={active:false,x:0,y:0,hits:0,need:22,flash:0};
 let haterSchedule=[];
 const HERBS=[{e:'🌿',n:'인삼'},{e:'🍯',n:'감초'},{e:'🌼',n:'당귀'},{e:'🪵',n:'황기'},{e:'🔴',n:'구기자'},{e:'🫘',n:'대추'},{e:'🟤',n:'계피'},{e:'🫚',n:'생강'},{e:'🌸',n:'작약'},{e:'🍄',n:'영지'}];
 const herbGame={active:false,pid:null,options:[],need:[],picked:[],flash:0,wrongIdx:-1,tiles:[]};
+const cupGame={active:false,pid:null,spots:[],order:[],idx:0,placed:[],flash:0,wrongIdx:-1};
+let cupButtons=[];
 let powerUntil=0;
 function powerActive(){ return performance.now()<powerUntil; }
 function activatePower(){ powerUntil=performance.now()+10000; floatText('파워업!!! ☕',player.x,player.y-22,'#e8590c'); }
@@ -184,7 +186,7 @@ const keys={};
 addEventListener('keydown',e=>{ const k=e.key.toLowerCase(); if(chuna.active){ const dir={arrowup:'up',w:'up',arrowdown:'down',s:'down',arrowleft:'left',a:'left',arrowright:'right',d:'right'}[k]; if(dir){ e.preventDefault(); chunaKey(dir); return; } } if(hater.active && k===' '){ e.preventDefault(); if(!e.repeat) hitHater(); return; } if(herbGame.active){ const num=parseInt(k,10); if(num>=1&&num<=7){ e.preventDefault(); herbPick(num-1); return; } } keys[k]=true; if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault(); });
 addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
 let pdown=false;
-cv.addEventListener('pointerdown',e=>{ if(herbGame.active){ herbClick(e); return; } pdown=true; setTarget(e); });
+cv.addEventListener('pointerdown',e=>{ if(cupGame.active){ cupClick(e); return; } if(herbGame.active){ herbClick(e); return; } if(tryClickCupButton(e)){ return; } pdown=true; setTarget(e); });
 cv.addEventListener('pointermove',e=>{ if(pdown) setTarget(e); });
 addEventListener('pointerup',()=>{ pdown=false; });
 function setTarget(e){ const r=cv.getBoundingClientRect(); player.target={ x:(e.clientX-r.left)*(W/r.width), y:(e.clientY-r.top)*(H/r.height) }; }
@@ -213,13 +215,18 @@ function startHerb(p){ herbGame.active=true; herbGame.pid=p.id; herbGame.picked=
 function herbPick(i){ if(!herbGame.active) return; if(herbGame.picked.includes(i)) return; const hid=herbGame.options[i]; if(herbGame.need.includes(hid)){ herbGame.picked.push(i); if(herbGame.picked.length>=herbGame.need.length) finishHerb(); } else { herbGame.flash=10; herbGame.wrongIdx=i; } }
 function herbClick(e){ const r=cv.getBoundingClientRect(); const x=(e.clientX-r.left)*(W/r.width), y=(e.clientY-r.top)*(H/r.height); if(!herbGame.tiles) return; for(const t of herbGame.tiles){ if(x>=t.x&&x<=t.x+t.w&&y>=t.y&&y<=t.y+t.h){ herbPick(t.pos); return; } } }
 function finishHerb(){ const p=getP(herbGame.pid); herbGame.active=false; if(p){ if(p.bedRef && p.bedRef.occupant===p.id) p.bedRef.occupant=null; p.bedRef=null; p.state='todesk'; floatText('한약 조제 완료!',p.x,p.y-12,'#2f9e44'); } player.lock=null; }
+function startCup(p){ cupGame.active=true; cupGame.pid=p.id; cupGame.placed=[]; cupGame.idx=0; cupGame.flash=0; cupGame.wrongIdx=-1; const cx=W/2, topY=H/2-92; cupGame.spots=[{x:cx-34,y:topY+44},{x:cx+34,y:topY+44},{x:cx-34,y:topY+104},{x:cx+34,y:topY+104},{x:cx-34,y:topY+164},{x:cx+34,y:topY+164}]; const ord=[0,1,2,3,4,5]; for(let i=ord.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; const t=ord[i]; ord[i]=ord[j]; ord[j]=t; } cupGame.order=ord; player.target=null; }
+function cupPick(i){ if(!cupGame.active) return; if(cupGame.placed.includes(i)) return; const target=cupGame.order[cupGame.idx]; if(i===target){ cupGame.placed.push(i); cupGame.idx++; if(cupGame.idx>=cupGame.order.length) finishCup(); } else { cupGame.flash=10; cupGame.wrongIdx=i; } }
+function cupClick(e){ const r=cv.getBoundingClientRect(); const x=(e.clientX-r.left)*(W/r.width), y=(e.clientY-r.top)*(H/r.height); for(let i=0;i<cupGame.spots.length;i++){ const s=cupGame.spots[i]; if(Math.hypot(x-s.x,y-s.y)<=24){ cupPick(i); return; } } }
+function finishCup(){ const p=getP(cupGame.pid); cupGame.active=false; if(p){ p.cupAvail=false; p.fee+=FEE_CUP_BONUS; p.treat=Math.min(p.treat,50); floatText('부항 완료! +'+won(FEE_CUP_BONUS),p.x,p.y-12,'#b5341f'); } }
+function tryClickCupButton(e){ const r=cv.getBoundingClientRect(); const x=(e.clientX-r.left)*(W/r.width), y=(e.clientY-r.top)*(H/r.height); for(const btn of cupButtons){ if(x>=btn.x&&x<=btn.x+btn.w&&y>=btn.y&&y<=btn.y+btn.h){ const p=getP(btn.pid); if(p&&p.cupAvail) startCup(p); return true; } } return false; }
 
 function updatePatient(p){
   switch(p.state){
     case 'in': { const s=waitSpots[p.waitSpot]; if(s && step(p,s.x,s.y,1.7)) p.state='wait'; break; }
     case 'wait': { if(!p.claimedBy){ p.patience--; if(p.patience<=0){ lost++; addRep(-REP_LOSS); floatText('😡 평판↓',p.x,p.y-10,'#e04646'); clearSpots(p); p.state='leave'; } } break; }
     case 'follow': { const L=p.leaderRef; if(L){ const dx=L.x-p.x,dy=L.y-p.y,d=Math.hypot(dx,dy); if(d>24){ const sp=Math.min(d-22,4.6); p.x+=dx/d*sp; p.y+=dy/d*sp; } } break; }
-    case 'treat': { p.treat--; if(p.treat<=0){ if(p.bedRef && p.bedRef.occupant===p.id) p.bedRef.occupant=null; p.bedRef=null; p.state='todesk'; } break; }
+    case 'treat': { if(!p.cupAsked && !p.herbal && !p.chuna && Math.random()<0.0016){ p.cupAsked=true; p.cupAvail=true; p.cupPatience=540; } if(p.cupAvail){ if(!cupGame.active) p.cupPatience--; if(p.cupPatience<=0){ p.cupAvail=false; floatText('부항 안 받고 감',p.x,p.y-14,'#9aa3ad'); } break; } p.treat--; if(p.treat<=0){ if(p.bedRef && p.bedRef.occupant===p.id) p.bedRef.occupant=null; p.bedRef=null; p.state='todesk'; } break; }
     case 'todesk': { if(p.paySpot<0){ if(!assignPay(p)){ step(p,200,475,1.7); break; } } const s=payQueue[p.paySpot]; if(step(p,s.x,s.y,1.7)){ p.state='pay'; p.payWait=0; } break; }
     case 'pay': { p.payWait++; break; }
     case 'chuna': break;
@@ -257,6 +264,7 @@ function updateGuide(g){
 }
 
 function updatePlayer(){
+  if(cupGame.active){ player.target=null; return; }
   if(player.lock){ const lp=getP(player.lock); if(lp && (lp.state==='treat'||lp.state==='chuna'||lp.state==='herb')){ const rm=lp.chuna?chunaRoom:room; player.x=rm.x+rm.w/2; player.y=rm.y+rm.h-18; player.target=null; return; } else { player.lock=null; } }
   let mx=0,my=0;
   if(keys['arrowleft']||keys['a']) mx-=1;
@@ -302,11 +310,11 @@ function update(){
   if(chuna.flash>0) chuna.flash--;
   if(herbGame.flash>0) herbGame.flash--;
   const nowE=performance.now()-startTime;
-  if(haterSchedule.length && nowE>=haterSchedule[0] && !hater.active && !chuna.active && !herbGame.active){ spawnHater(); haterSchedule.shift(); }
-  if(hater.active && !chuna.active && !herbGame.active) addRep(-0.028);
+  if(haterSchedule.length && nowE>=haterSchedule[0] && !hater.active && !chuna.active && !herbGame.active && !cupGame.active){ spawnHater(); haterSchedule.shift(); }
+  if(hater.active && !chuna.active && !herbGame.active && !cupGame.active) addRep(-0.028);
   if(hater.flash>0) hater.flash--;
   document.getElementById('dpad').classList.toggle('show', chuna.active);
-  document.getElementById('bashBtn').classList.toggle('show', hater.active && !chuna.active && !herbGame.active);
+  document.getElementById('bashBtn').classList.toggle('show', hater.active && !chuna.active && !herbGame.active && !cupGame.active);
   document.getElementById('money').innerHTML='💰 <b>'+won(money)+'</b>';
   document.getElementById('repval').textContent=Math.round(reputation);
   document.getElementById('repbar').style.width=reputation+'%';
@@ -421,6 +429,7 @@ function drawBedObj(b,kind){ kind=kind||'reg'; const herb=kind==='herb', chu=kin
       ctx.fillStyle=herb?'#2f9e44':chu?'#d98a2b':'#2bb673'; roundRect(x+9,y+h-9,(w-18)*pct,5,2); ctx.fill();
     }
   } else { ctx.fillStyle='rgba(90,120,140,0.5)'; ctx.font='18px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(herb?'🌿':chu?'💪':'🛏',b.x+w*0.2,b.y); }
+  if(kind==='reg' && b.occupant && !cupGame.active){ const cp=getP(b.occupant); if(cp && cp.cupAvail){ const bw=64,bh=22,bx=b.x-bw/2,by=b.y-h/2-28; ctx.fillStyle='rgba(181,52,31,'+(0.82+0.18*Math.sin(elapsed*0.2))+')'; roundRect(bx,by,bw,bh,7); ctx.fill(); ctx.strokeStyle='#ffd84d'; ctx.lineWidth=2; roundRect(bx,by,bw,bh,7); ctx.stroke(); ctx.fillStyle='#fff'; ctx.font='700 12px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🩸 부항',b.x,by+bh/2); ctx.fillStyle='rgba(181,52,31,0.9)'; ctx.beginPath(); ctx.moveTo(b.x-5,by+bh); ctx.lineTo(b.x+5,by+bh); ctx.lineTo(b.x,by+bh+6); ctx.closePath(); ctx.fill(); if(cp.cupPatience!==undefined){ const pct=Math.max(0,cp.cupPatience/540); ctx.fillStyle='rgba(0,0,0,0.22)'; ctx.fillRect(bx,by-5,bw,3); ctx.fillStyle='#ffd84d'; ctx.fillRect(bx,by-5,bw*pct,3); } cupButtons.push({x:bx,y:by,w:bw,h:bh,pid:cp.id}); } }
 }
 function drawHerbRoom(){
   const R=room;
@@ -467,6 +476,7 @@ function drawDesk(){
   payQueue.forEach(function(s){ ctx.strokeStyle='rgba(120,120,120,0.3)'; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.arc(s.x,s.y,14,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]); });
 }
 function draw(){
+  cupButtons=[];
   drawBackground();
   drawDecor();
   beds.forEach(b=>drawBedObj(b,'reg'));
@@ -494,10 +504,11 @@ function draw(){
   if(player.lock){ const lp=getP(player.lock); if(lp){ bubble(player.x,player.y-4, lp.state==='chuna'?'💪 추나 중...':'🌿 한약 조제 중...', lp.state==='chuna'?'rgba(180,110,40,0.9)':'rgba(40,130,60,0.9)'); } }
   floats.forEach(f=>{ ctx.globalAlpha=Math.max(0,f.life/55); ctx.fillStyle=f.c; ctx.font='700 14px sans-serif'; ctx.textAlign='center'; ctx.fillText(f.t,f.x,f.y); ctx.globalAlpha=1; });
   coins.forEach(c=>{ ctx.globalAlpha=Math.max(0,Math.min(1,c.life/14)); ctx.font='16px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🪙',c.x,c.y); ctx.globalAlpha=1; });
-  if(hater.active && !chuna.active && !herbGame.active){ ctx.strokeStyle='rgba(224,49,49,'+(0.45+0.35*Math.sin(elapsed*0.22))+')'; ctx.lineWidth=8; ctx.strokeRect(4,4,W-8,H-8); ctx.fillStyle='#c92a2a'; ctx.font='700 13px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🚨 폭동! 원장이 다가가 👊 난타로 쫓아내세요!', W/2, 52); }
+  if(hater.active && !chuna.active && !herbGame.active && !cupGame.active){ ctx.strokeStyle='rgba(224,49,49,'+(0.45+0.35*Math.sin(elapsed*0.22))+')'; ctx.lineWidth=8; ctx.strokeRect(4,4,W-8,H-8); ctx.fillStyle='#c92a2a'; ctx.font='700 13px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🚨 폭동! 원장이 다가가 👊 난타로 쫓아내세요!', W/2, 52); }
   if(powerActive()){ const a=0.4+0.45*Math.abs(Math.sin(elapsed*0.45)); ctx.strokeStyle='rgba(255,170,0,'+a+')'; ctx.lineWidth=10; ctx.strokeRect(5,5,W-10,H-10); ctx.fillStyle='#e8590c'; ctx.font='800 16px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('☕ 파워업! 속도 UP!', W/2, 74); }
   drawChunaUI();
   drawHerbUI();
+  drawCupUI();
 }
 function drawHerbUI(){
   if(!herbGame.active) return;
@@ -525,8 +536,27 @@ function drawHerbUI(){
     herbGame.tiles.push({x:ax,y:oy-tw/2,w:tw,h:tw,pos:i});
   });
 }
+function drawCupUI(){
+  if(!cupGame.active) return;
+  const cx=W/2, topY=H/2-92, panelW=300, panelH=300, px=cx-panelW/2, py=topY-46;
+  ctx.fillStyle='rgba(15,28,46,0.95)'; roundRect(px,py,panelW,panelH,16); ctx.fill();
+  ctx.strokeStyle=cupGame.flash>0?'#ff6b6b':'rgba(255,255,255,0.22)'; ctx.lineWidth=3; ctx.stroke();
+  ctx.fillStyle='#ffb3a0'; ctx.font='700 14px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('🩸 부항 시술! 혈자리에 컵을 놓으세요', cx, py+22);
+  ctx.fillStyle='#cfd8e3'; ctx.font='700 11px sans-serif'; ctx.fillText('반짝이는 자리를 정확히 탭 ('+cupGame.idx+'/'+cupGame.order.length+')', cx, py+42);
+  const backX=cx-52, backY=topY+14, backW=104, backH=178;
+  ctx.fillStyle='#e0aa80'; roundRect(cx-24,backY-16,48,24,11); ctx.fill();
+  ctx.fillStyle='#f0c49b'; roundRect(backX,backY,backW,backH,26); ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,0.07)'; ctx.fillRect(cx-1.5,backY+12,3,backH-24);
+  const target=cupGame.order[cupGame.idx];
+  for(let i=0;i<cupGame.spots.length;i++){ const s=cupGame.spots[i]; const placed=cupGame.placed.includes(i);
+    if(placed){ ctx.fillStyle='rgba(181,52,31,0.85)'; ctx.beginPath(); ctx.arc(s.x,s.y,13,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#7a1f12'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(s.x,s.y,13,0,Math.PI*2); ctx.stroke(); ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.beginPath(); ctx.arc(s.x-3,s.y-3,3.5,0,Math.PI*2); ctx.fill(); }
+    else if(i===target){ const pr=13+2.5*Math.sin(elapsed*0.3); ctx.fillStyle='rgba(255,216,77,0.28)'; ctx.beginPath(); ctx.arc(s.x,s.y,10,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#ffd84d'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(s.x,s.y,pr,0,Math.PI*2); ctx.stroke(); }
+    else { ctx.fillStyle=(cupGame.flash>0&&cupGame.wrongIdx===i)?'#c0392b':'rgba(110,75,55,0.5)'; ctx.beginPath(); ctx.arc(s.x,s.y,7,0,Math.PI*2); ctx.fill(); }
+  }
+}
 function drawHater(){
-  if(!hater.active || chuna.active || herbGame.active) return;
+  if(!hater.active || chuna.active || herbGame.active || cupGame.active) return;
   const ox=hater.flash>0?(Math.random()*6-3):0, oy=hater.flash>0?(Math.random()*6-3):0;
   const sx=hater.x+ox, sy=hater.y+oy;
   ctx.fillStyle='rgba(224,49,49,'+(0.16+0.1*Math.abs(Math.sin(elapsed*0.2)))+')'; ctx.beginPath(); ctx.arc(sx,sy,34,0,Math.PI*2); ctx.fill();
