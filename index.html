@@ -30,6 +30,9 @@
   #dpad button { border:none; border-radius:13px; background:rgba(255,216,77,0.96); color:#2a2200; font-size:24px; font-weight:800; cursor:pointer; box-shadow:0 3px 0 #c9a92f; user-select:none; -webkit-user-select:none; touch-action:none; }
   #dpad button:active { transform:translateY(2px); box-shadow:0 1px 0 #c9a92f; }
   .dp-up{ grid-area:1/2; } .dp-left{ grid-area:2/1; } .dp-right{ grid-area:2/3; } .dp-down{ grid-area:3/2; }
+  #bashBtn { position:absolute; left:50%; bottom:90px; transform:translateX(-50%); display:none; background:#e03131; color:#fff; border:none; border-radius:50%; width:104px; height:104px; font-size:19px; font-weight:800; cursor:pointer; box-shadow:0 5px 0 #a51111; z-index:12; touch-action:none; }
+  #bashBtn.show { display:block; }
+  #bashBtn:active { transform:translateX(-50%) translateY(3px); box-shadow:0 2px 0 #a51111; }
   #submitRow { display:flex; gap:6px; align-items:center; }
   #nameInput { padding:9px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.12); color:#fff; font-size:15px; width:150px; text-align:center; }
   #nameInput::placeholder { color:rgba(255,255,255,0.5); }
@@ -57,8 +60,8 @@
   <div id="hire" class="hidden">
     <button class="hbtn" id="buyBed">🛏 침대 추가<small id="bedCost">₩60,000</small></button>
     <button class="hbtn" id="buySeat">🪑 좌석 추가<small id="seatCost">₩25,000</small></button>
-    <button class="hbtn" id="hireGuide">👩‍⚕️ 안내원<small id="guideCost">₩60,000</small></button>
-    <button class="hbtn" id="hireCashier">🧑‍💼 수납원<small id="cashierCost">₩60,000</small></button>
+    <button class="hbtn" id="hireGuide">👩‍⚕️ 안내간조<small id="guideCost">₩60,000</small></button>
+    <button class="hbtn" id="hireCashier">🧑‍💼 수납간조<small id="cashierCost">₩60,000</small></button>
   </div>
   <div id="startScreen" class="overlay">
     <h1>🏥 한의원 타이쿤</h1>
@@ -67,7 +70,7 @@
     2️⃣ 진료 끝난 <b>💵 환자</b>는 데스크 앞으로. 데스크 근처로 가면 자동 수납!<br>
     3️⃣ 🌿 <b>한약 환자</b>(₩100,000) · 💪 <b>추나 환자</b>(₩50,000)는 <b>원장만</b> 안내 가능! 추나는 방향키 7개를 똑같이 눌러야 돼요.<br>
     4️⃣ ⭐ <b>평판</b>이 오르면 환자가 더 많이 와요. 빡쳐서 나가면 평판 ↓.<br>
-    5️⃣ 돈 모아 <b>침대·좌석·안내원·수납원</b>을 늘리고, ⏱ <b>3분</b> 안에 최대한 많이 벌어보세요!</p>
+    5️⃣ 돈 모아 <b>침대·좌석·안내간조·수납간조</b>을 늘리고, ⏱ <b>3분</b> 안에 최대한 많이 벌어보세요!</p>
     <button class="big" id="startBtn">시작하기</button>
   </div>
   <div id="endScreen" class="overlay hidden">
@@ -91,6 +94,7 @@
     <button class="dp-right" data-dir="right">▶</button>
     <button class="dp-down" data-dir="down">▼</button>
   </div>
+  <button id="bashBtn">👊 난타!</button>
 </div>
 <script>
 const cv=document.getElementById('game'), ctx=cv.getContext('2d');
@@ -124,6 +128,8 @@ const TREAT_TIME=300, HERB_TREAT=480, WAIT_PATIENCE=1700, COLLECT_CD=22;
 const REP_GAIN_REG=1.2, REP_GAIN_HERB=3.5, REP_GAIN_CHUNA=2.5, REP_LOSS=4.5;
 const DIRS=['up','down','left','right'];
 const chuna={active:false,pid:null,seq:[],idx:0,flash:0};
+const hater={active:false,x:0,y:0,hits:0,need:22,flash:0};
+let haterSchedule=[];
 const SUPA_URL='https://phcqwwrrqmovgpknbyiy.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoY3F3d3JycW1vdmdwa25ieWl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMDI4MTEsImV4cCI6MjA5NTg3ODgxMX0.wFUAj9MOJVt74MxDciQl5T6LuXJwnV7h6Gtg9emlHzM';
 const MAX_LEGIT=9000000;
@@ -133,7 +139,7 @@ let patients=[], guides=[], cashiers=[], floats=[];
 let nextId=1, money=0, served=0, lost=0, elapsed=0, spawnTimer=0, running=false, reputation=30;
 let guideCount=0, cashierCount=0;
 const LIMIT_MS=180000; let startTime=0, ended=false;
-const player={x:200,y:610,speed:3.5,leading:null,cd:0,target:null,lock:null};
+const player={x:200,y:610,speed:4.8,leading:null,cd:0,target:null,lock:null};
 function mmss(ms){ const t=Math.max(0,Math.ceil(ms/1000)); const m=Math.floor(t/60), s=t%60; return m+':'+(s<10?'0':'')+s; }
 
 function won(n){ return '₩'+Math.round(n).toLocaleString('ko-KR'); }
@@ -158,7 +164,7 @@ function clearSpots(p){
 
 // ===== 입력 =====
 const keys={};
-addEventListener('keydown',e=>{ const k=e.key.toLowerCase(); if(chuna.active){ const dir={arrowup:'up',w:'up',arrowdown:'down',s:'down',arrowleft:'left',a:'left',arrowright:'right',d:'right'}[k]; if(dir){ e.preventDefault(); chunaKey(dir); return; } } keys[k]=true; if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault(); });
+addEventListener('keydown',e=>{ const k=e.key.toLowerCase(); if(chuna.active){ const dir={arrowup:'up',w:'up',arrowdown:'down',s:'down',arrowleft:'left',a:'left',arrowright:'right',d:'right'}[k]; if(dir){ e.preventDefault(); chunaKey(dir); return; } } if(hater.active && k===' '){ e.preventDefault(); if(!e.repeat) hitHater(); return; } keys[k]=true; if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault(); });
 addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
 let pdown=false;
 cv.addEventListener('pointerdown',e=>{ pdown=true; setTarget(e); });
@@ -183,12 +189,15 @@ function totalTreat(p){ return p.herbal?HERB_TREAT:TREAT_TIME; }
 function startChuna(p){ chuna.active=true; chuna.pid=p.id; chuna.seq=[]; for(let i=0;i<7;i++) chuna.seq.push(rand(DIRS)); chuna.idx=0; chuna.flash=0; }
 function chunaKey(dir){ if(!chuna.active) return; if(dir===chuna.seq[chuna.idx]){ chuna.idx++; if(chuna.idx>=chuna.seq.length) finishChuna(); } else { chuna.flash=10; } }
 function finishChuna(){ const p=getP(chuna.pid); chuna.active=false; if(p){ if(p.bedRef && p.bedRef.occupant===p.id) p.bedRef.occupant=null; p.bedRef=null; p.state='todesk'; floatText('추나 완료!',p.x,p.y-12,'#d98a2b'); } player.lock=null; }
+function spawnHater(){ hater.active=true; hater.hits=0; hater.flash=0; hater.x=200; hater.y=430; floatText('😡 한까의사 난입! 폭동!',hater.x,hater.y-26,'#e03131'); }
+function hitHater(){ if(!hater.active) return; if(dist(player,hater)<74){ hater.hits++; hater.flash=6; floatText(rand(['퍽!','💥','콱!','퍽!']),hater.x+(Math.random()*28-14),hater.y-24,'#e8590c'); if(hater.hits>=hater.need) defeatHater(); } }
+function defeatHater(){ hater.active=false; addRep(5); floatText('한까의사 퇴장! 👊',hater.x,hater.y-20,'#2f9e44'); }
 
 function updatePatient(p){
   switch(p.state){
     case 'in': { const s=waitSpots[p.waitSpot]; if(s && step(p,s.x,s.y,1.7)) p.state='wait'; break; }
     case 'wait': { if(!p.claimedBy){ p.patience--; if(p.patience<=0){ lost++; addRep(-REP_LOSS); floatText('😡 평판↓',p.x,p.y-10,'#e04646'); clearSpots(p); p.state='leave'; } } break; }
-    case 'follow': { const L=p.leaderRef; if(L){ const dx=L.x-p.x,dy=L.y-p.y,d=Math.hypot(dx,dy); if(d>24){ const sp=Math.min(d-22,3.9); p.x+=dx/d*sp; p.y+=dy/d*sp; } } break; }
+    case 'follow': { const L=p.leaderRef; if(L){ const dx=L.x-p.x,dy=L.y-p.y,d=Math.hypot(dx,dy); if(d>24){ const sp=Math.min(d-22,4.6); p.x+=dx/d*sp; p.y+=dy/d*sp; } } break; }
     case 'treat': { p.treat--; if(p.treat<=0){ if(p.bedRef && p.bedRef.occupant===p.id) p.bedRef.occupant=null; p.bedRef=null; p.state='todesk'; } break; }
     case 'todesk': { if(p.paySpot<0){ if(!assignPay(p)){ step(p,200,475,1.7); break; } } const s=payQueue[p.paySpot]; if(step(p,s.x,s.y,1.7)){ p.state='pay'; p.payWait=0; } break; }
     case 'pay': { p.payWait++; break; }
@@ -266,7 +275,12 @@ function update(){
   floats.forEach(f=>{ f.y-=0.6; f.life--; });
   floats=floats.filter(f=>f.life>0);
   if(chuna.flash>0) chuna.flash--;
+  const nowE=performance.now()-startTime;
+  if(haterSchedule.length && nowE>=haterSchedule[0] && !hater.active && !chuna.active){ spawnHater(); haterSchedule.shift(); }
+  if(hater.active) addRep(-0.028);
+  if(hater.flash>0) hater.flash--;
   document.getElementById('dpad').classList.toggle('show', chuna.active);
+  document.getElementById('bashBtn').classList.toggle('show', hater.active);
   document.getElementById('money').innerHTML='💰 <b>'+won(money)+'</b>';
   document.getElementById('repval').textContent=Math.round(reputation);
   document.getElementById('repbar').style.width=reputation+'%';
@@ -308,17 +322,24 @@ function drawBackground(){
   waitSpots.forEach(s=>{ if(!s.taken){ ctx.strokeStyle='rgba(150,110,60,0.35)'; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.arc(s.x,s.y,15,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle='rgba(150,110,60,0.4)'; ctx.font='15px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🪑',s.x,s.y); } });
 }
 function drawBedObj(b,kind){ kind=kind||'reg'; const herb=kind==='herb', chu=kind==='chuna';
-  ctx.fillStyle=b.occupant?(herb?'#cfe6c2':chu?'#f0ddc4':'#cfe3d6'):(b.reserved?'#e6efde':(herb?'#dcecd0':chu?'#f3e7d4':'#dfeee6'));
-  roundRect(b.x-b.w/2,b.y-b.h/2,b.w,b.h,9); ctx.fill();
-  ctx.strokeStyle=herb?'#8fbf7e':chu?'#c9a870':'#9cbcab'; ctx.lineWidth=2; ctx.stroke();
-  ctx.fillStyle='#ffffff'; roundRect(b.x-b.w/2+7,b.y-b.h/2+7,24,b.h-14,5); ctx.fill();
+  const x=b.x-b.w/2, y=b.y-b.h/2, w=b.w, h=b.h;
+  const frame=herb?'#7faa68':chu?'#c79a5a':'#9a7b53';
+  const frameLt=herb?'#a6cb90':chu?'#dcbb82':'#c2a279';
+  const blanket=b.occupant?(herb?'#7fc77f':chu?'#e6a45a':'#7fb0e0'):(herb?'#c4e2b6':chu?'#edd3ad':'#c2daf2');
+  ctx.fillStyle='rgba(0,0,0,0.10)'; roundRect(x+3,y+5,w,h,12); ctx.fill();
+  ctx.fillStyle=frame; roundRect(x,y,w,h,12); ctx.fill();
+  ctx.fillStyle=frameLt; roundRect(x,y,7,h,4); ctx.fill();
+  ctx.fillStyle='#fbf6ec'; roundRect(x+8,y+5,w-15,h-10,8); ctx.fill();
+  ctx.fillStyle='#ffffff'; ctx.strokeStyle='rgba(120,110,90,0.22)'; ctx.lineWidth=1; roundRect(x+11,y+9,w*0.2,h-18,6); ctx.fill(); ctx.stroke();
+  const bx=x+w*0.35; ctx.fillStyle=blanket; roundRect(bx,y+8,x+w-8-bx,h-16,8); ctx.fill();
+  ctx.strokeStyle=frameLt; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(bx+4,y+9); ctx.lineTo(bx+4,y+h-9); ctx.stroke();
   if(b.occupant){ const p=getP(b.occupant);
-    if(p){ person(b.x+12,b.y,herb?'#aad79a':chu?'#e8bd91':'#bcd8c8',p.emoji,14);
+    if(p){ person(x+w*0.24,b.y,herb?'#aad79a':chu?'#e8bd91':'#bcd8c8',p.emoji,Math.min(13,h*0.26));
       let pct; if(chu){ pct=(chuna.active&&chuna.pid===p.id)?chuna.idx/chuna.seq.length:0; } else { pct=1-p.treat/totalTreat(p); }
-      ctx.fillStyle='rgba(0,0,0,0.15)'; roundRect(b.x-b.w/2+7,b.y+b.h/2-10,b.w-14,6,3); ctx.fill();
-      ctx.fillStyle=herb?'#2f9e44':chu?'#d98a2b':'#2bb673'; roundRect(b.x-b.w/2+7,b.y+b.h/2-10,(b.w-14)*pct,6,3); ctx.fill();
+      ctx.fillStyle='rgba(0,0,0,0.13)'; roundRect(x+9,y+h-9,w-18,5,2); ctx.fill();
+      ctx.fillStyle=herb?'#2f9e44':chu?'#d98a2b':'#2bb673'; roundRect(x+9,y+h-9,(w-18)*pct,5,2); ctx.fill();
     }
-  } else { ctx.fillStyle='rgba(80,140,110,0.4)'; ctx.font='20px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(herb?'🌿':chu?'💪':'🛏',b.x+18,b.y); }
+  } else { ctx.fillStyle='rgba(90,120,140,0.5)'; ctx.font='18px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(herb?'🌿':chu?'💪':'🛏',b.x+w*0.2,b.y); }
 }
 function drawHerbRoom(){
   ctx.fillStyle='#eef6e8'; roundRect(room.x,room.y,room.w,room.h,12); ctx.fill();
@@ -366,11 +387,25 @@ function draw(){
   });
   guides.forEach(g=> person(g.x,g.y,'#8fb6e8','💁‍♀️',15));
   cashiers.forEach(c=> person(c.x,c.y,'#8fd8a8','🧑‍💼',15));
+  drawHater();
   person(player.x,player.y,'#ffd84d','🧑‍⚕️',17);
   ctx.fillStyle='#7a5c00'; ctx.font='700 10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('원장님', player.x, player.y+27);
   if(player.lock){ const lp=getP(player.lock); if(lp){ bubble(player.x,player.y-4,'🌿 진료 중...','rgba(40,130,60,0.9)'); const pct=1-lp.treat/HERB_TREAT; ctx.fillStyle='rgba(0,0,0,0.18)'; roundRect(player.x-20,player.y+31,40,6,3); ctx.fill(); ctx.fillStyle='#2f9e44'; roundRect(player.x-20,player.y+31,40*pct,6,3); ctx.fill(); } }
   floats.forEach(f=>{ ctx.globalAlpha=Math.max(0,f.life/55); ctx.fillStyle=f.c; ctx.font='700 14px sans-serif'; ctx.textAlign='center'; ctx.fillText(f.t,f.x,f.y); ctx.globalAlpha=1; });
+  if(hater.active){ ctx.strokeStyle='rgba(224,49,49,'+(0.45+0.35*Math.sin(elapsed*0.22))+')'; ctx.lineWidth=8; ctx.strokeRect(4,4,W-8,H-8); ctx.fillStyle='#c92a2a'; ctx.font='700 13px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🚨 폭동! 원장이 다가가 👊 난타로 쫓아내세요!', W/2, 52); }
   drawChunaUI();
+}
+function drawHater(){
+  if(!hater.active) return;
+  const ox=hater.flash>0?(Math.random()*6-3):0, oy=hater.flash>0?(Math.random()*6-3):0;
+  const sx=hater.x+ox, sy=hater.y+oy;
+  ctx.fillStyle='rgba(224,49,49,'+(0.16+0.1*Math.abs(Math.sin(elapsed*0.2)))+')'; ctx.beginPath(); ctx.arc(sx,sy,34,0,Math.PI*2); ctx.fill();
+  person(sx,sy,'#e03131','😡',21);
+  ctx.fillStyle='#c92a2a'; ctx.font='700 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('한까의사',sx,sy+32);
+  const pct=Math.max(0,1-hater.hits/hater.need);
+  ctx.fillStyle='rgba(0,0,0,0.2)'; roundRect(sx-32,sy-44,64,8,4); ctx.fill();
+  ctx.fillStyle='#e03131'; roundRect(sx-32,sy-44,64*pct,8,4); ctx.fill();
+  ctx.fillStyle='#c92a2a'; ctx.font='700 10px sans-serif'; ctx.fillText('👊 '+hater.hits+'/'+hater.need, sx, sy-52);
 }
 function drawChunaUI(){
   if(!chuna.active) return;
@@ -415,16 +450,17 @@ function submitScore(){
     .then(function(r){ if(!r.ok) throw 0; submitted=true; msg.textContent='✅ 랭킹에 등록됐어요!'; loadBoard(); })
     .catch(function(){ msg.textContent='❌ 등록 실패. 잠시 후 다시 시도해주세요.'; btn.disabled=false; });
 }
-function start(){ document.getElementById('startScreen').classList.add('hidden'); document.getElementById('ui').classList.remove('hidden'); document.getElementById('hire').classList.remove('hidden'); running=true; ended=false; startTime=performance.now(); trySpawn(); loop(); }
+function start(){ document.getElementById('startScreen').classList.add('hidden'); document.getElementById('ui').classList.remove('hidden'); document.getElementById('hire').classList.remove('hidden'); running=true; ended=false; startTime=performance.now(); haterSchedule=[ 28000+Math.random()*30000, 92000+Math.random()*46000 ]; trySpawn(); loop(); }
 function endGame(){ running=false; ended=true; submitted=false; const sb=document.getElementById('submitBtn'); if(sb) sb.disabled=false; document.getElementById('submitMsg').textContent=''; document.getElementById('endMoney').textContent=won(money); document.getElementById('endStats').textContent='🙆 진료 '+served+'명 · 😡 이탈 '+lost+'명 · ⭐ 평판 '+Math.round(reputation); document.getElementById('endScreen').classList.remove('hidden'); loadBoard(); }
 document.getElementById('startBtn').onclick=start;
 document.getElementById('restartBtn').onclick=()=>location.reload();
 document.getElementById('submitBtn').onclick=submitScore;
 document.querySelectorAll('#dpad button').forEach(b=>{ b.addEventListener('pointerdown',e=>{ e.preventDefault(); chunaKey(b.dataset.dir); }); });
+document.getElementById('bashBtn').addEventListener('pointerdown',e=>{ e.preventDefault(); hitHater(); });
 document.getElementById('buyBed').onclick=()=>{ if(money>=bedCost()&&beds.length<MAX_BEDS){ money-=bedCost(); const s=bedSlots[beds.length]; beds.push({x:s.x,y:s.y,w:130,h:66,occupant:null,reserved:false}); floatText('🛏 침대 추가!',s.x,s.y,'#1f8f4e'); } };
 document.getElementById('buySeat').onclick=()=>{ if(money>=seatCost()&&waitSpots.length<MAX_SEATS){ money-=seatCost(); const s=seatSlots[waitSpots.length]; waitSpots.push({x:s.x,y:s.y,taken:null}); floatText('🪑 좌석 추가!',s.x,s.y,'#2b6fd0'); } };
-document.getElementById('hireGuide').onclick=()=>{ if(money>=guideCost()&&guideCount<4){ money-=guideCost(); guides.push({x:guideHome.x,y:guideHome.y,speed:2.5,state:'idle',pid:null,bed:null}); guideCount++; floatText('안내원 고용!',guideHome.x,guideHome.y-14,'#2b6fd0'); } };
-document.getElementById('hireCashier').onclick=()=>{ if(money>=cashierCost()&&cashierCount<4){ money-=cashierCost(); const hx=desk.x+45+cashierCount*48, hy=desk.y-15; cashiers.push({x:hx,y:hy,hx:hx,hy:hy,speed:2.5,cd:0}); cashierCount++; floatText('수납원 고용!',hx,hy-14,'#1f8f4e'); } };
+document.getElementById('hireGuide').onclick=()=>{ if(money>=guideCost()&&guideCount<4){ money-=guideCost(); guides.push({x:guideHome.x,y:guideHome.y,speed:2.5,state:'idle',pid:null,bed:null}); guideCount++; floatText('안내간조 고용!',guideHome.x,guideHome.y-14,'#2b6fd0'); } };
+document.getElementById('hireCashier').onclick=()=>{ if(money>=cashierCost()&&cashierCount<4){ money-=cashierCost(); const hx=desk.x+45+cashierCount*48, hy=desk.y-15; cashiers.push({x:hx,y:hy,hx:hx,hy:hy,speed:2.5,cd:0}); cashierCount++; floatText('수납간조 고용!',hx,hy-14,'#1f8f4e'); } };
 </script>
 </body>
 </html>
