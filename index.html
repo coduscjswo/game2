@@ -16,6 +16,8 @@
   .bar { width:122px; height:6px; background:rgba(255,255,255,0.2); border-radius:3px; margin:4px 0 2px auto; overflow:hidden; }
   #repbar { height:100%; width:30%; background:linear-gradient(90deg,#ffce54,#7bd88f); transition:width 0.2s; }
   #counts { font-size:11px; opacity:0.85; }
+  #signboard { position:absolute; top:9px; left:50%; transform:translateX(-50%); background:linear-gradient(#8a5a2b,#6b3f1d); color:#fff5d6; border:2px solid #ffd84d; border-radius:11px; padding:5px 18px; font-size:15px; font-weight:800; letter-spacing:0.5px; z-index:5; pointer-events:none; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,0.35); }
+  #signboard span { color:#ffe9a8; }
   #hire { position:absolute; bottom:10px; left:50%; transform:translateX(-50%); width:min(96vw,460px); display:flex; flex-wrap:wrap; gap:6px; z-index:6; }
   .hbtn { flex:1 1 46%; pointer-events:auto; background:#ffd84d; color:#3a2c00; border:none; border-radius:11px; padding:7px 6px; font-size:12.5px; font-weight:800; cursor:pointer; line-height:1.3; box-shadow:0 3px 0 #c9a92f; }
   .hbtn small { display:block; font-size:11px; font-weight:700; opacity:0.85; }
@@ -49,9 +51,12 @@
 <body>
 <div id="wrap">
   <canvas id="game" width="460" height="760"></canvas>
+  <div id="signboard" class="hidden">🏥 <span id="signName">행복</span> 한의원</div>
   <div id="ui" class="hidden">
-    <div class="stat" id="money">💰 <b>₩0</b></div>
-    <div class="stat" id="timer">⏱ <b id="timeval">3:00</b></div>
+    <div style="display:flex; flex-direction:column; gap:5px; align-items:flex-start;">
+      <div class="stat" id="money">💰 <b>₩0</b></div>
+      <div class="stat" id="timer">⏱ <b id="timeval">3:00</b></div>
+    </div>
     <div class="stat" id="repbox">⭐ 평판 <b id="repval">30</b>
       <div class="bar"><div id="repbar"></div></div>
       <div id="counts">🙆 0 · 😡 0</div>
@@ -71,7 +76,9 @@
     3️⃣ 🌿 <b>한약 환자</b>(₩100,000) · 💪 <b>추나 환자</b>(₩50,000)는 <b>원장만</b> 안내 가능! 추나는 방향키 7개를 똑같이 눌러야 돼요.<br>
     4️⃣ ⭐ <b>평판</b>이 오르면 환자가 더 많이 와요. 빡쳐서 나가면 평판 ↓.<br>
     5️⃣ 돈 모아 <b>침대·좌석·안내간조·수납간조</b>을 늘리고, ⏱ <b>3분</b> 안에 최대한 많이 벌어보세요!</p>
+    <input id="clinicInput" placeholder="한의원 이름 (예: 행복)" maxlength="6" style="padding:9px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.12); color:#fff; font-size:15px; width:200px; text-align:center;" />
     <button class="big" id="startBtn">시작하기</button>
+    <div style="position:absolute; bottom:16px; left:0; right:0; text-align:center; font-size:12px; opacity:0.5; letter-spacing:0.3px;">made by. 챈</div>
   </div>
   <div id="endScreen" class="overlay hidden">
     <h1>⏰ 영업 종료!</h1>
@@ -141,7 +148,7 @@ const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const MAX_LEGIT=9000000;
 let submitted=false;
 
-let patients=[], guides=[], cashiers=[], floats=[];
+let patients=[], guides=[], cashiers=[], floats=[], coins=[];
 let nextId=1, money=0, served=0, lost=0, elapsed=0, spawnTimer=0, running=false, reputation=30;
 let guideCount=0, cashierCount=0;
 const LIMIT_MS=180000; let startTime=0, ended=false;
@@ -159,6 +166,7 @@ function getP(id){ return patients.find(p=>p.id===id); }
 function step(o,tx,ty,sp){ const dx=tx-o.x,dy=ty-o.y,d=Math.hypot(dx,dy); if(d<=sp){o.x=tx;o.y=ty;return true;} o.x+=dx/d*sp;o.y+=dy/d*sp;return false; }
 function freeWait(){ return waitSpots.findIndex(s=>!s.taken); }
 function floatText(t,x,y,c){ floats.push({t:t,x:x,y:y,life:55,c:c||'#1f8f4e'}); }
+function spawnCoins(x,y){ for(let i=0;i<9;i++){ coins.push({x:x,y:y,vx:(Math.random()*2-1)*2.7,vy:-(2.6+Math.random()*3.2),life:30+((Math.random()*12)|0)}); } }
 function addRep(d){ reputation=Math.max(0,Math.min(100,reputation+d)); }
 function freeBedFor(p){ const arr=p.herbal?herbBeds:p.chuna?chunaBeds:beds; for(const b of arr){ if(!b.occupant&&!b.reserved) return b; } return null; }
 function clearSpots(p){
@@ -221,7 +229,7 @@ function tryCollect(c){
   if(c.cd>0){ c.cd--; return; }
   let best=null;
   for(const p of patients){ if(p.state==='pay'){ if(!best||p.payWait>best.payWait) best=p; } }
-  if(best){ money+=best.fee; served++; addRep(best.herbal?REP_GAIN_HERB:best.chuna?REP_GAIN_CHUNA:REP_GAIN_REG); floatText('+'+won(best.fee),best.x,best.y-10,'#1f8f4e'); if(best.paySpot>=0){ payQueue[best.paySpot].taken=null; best.paySpot=-1; } best.state='leave'; c.cd=COLLECT_CD; }
+  if(best){ money+=best.fee; served++; addRep(best.herbal?REP_GAIN_HERB:best.chuna?REP_GAIN_CHUNA:REP_GAIN_REG); floatText('+'+won(best.fee),best.x,best.y-10,'#1f8f4e'); floatText('💰 ka-ching!',best.x,best.y-26,'#e8a33d'); spawnCoins(best.x,best.y-4); if(best.paySpot>=0){ payQueue[best.paySpot].taken=null; best.paySpot=-1; } best.state='leave'; c.cd=COLLECT_CD; }
 }
 
 function updateGuide(g){
@@ -286,6 +294,8 @@ function update(){
   patients=patients.filter(p=>!p._remove);
   floats.forEach(f=>{ f.y-=0.6; f.life--; });
   floats=floats.filter(f=>f.life>0);
+  coins.forEach(c=>{ c.x+=c.vx; c.y+=c.vy; c.vy+=0.34; c.life--; });
+  coins=coins.filter(c=>c.life>0);
   if(chuna.flash>0) chuna.flash--;
   if(herbGame.flash>0) herbGame.flash--;
   const nowE=performance.now()-startTime;
@@ -330,14 +340,12 @@ function drawDecor(){
   ctx.fillStyle='#5aa0d8'; roundRect(x-11,y-34,22,28,8); ctx.fill();
   ctx.fillStyle='rgba(255,255,255,0.5)'; roundRect(x-7,y-30,5,16,2); ctx.fill();
   ctx.fillStyle='#5d6b75'; ctx.fillRect(x-3,y+12,6,5);
-  ctx.fillStyle='rgba(70,110,90,0.6)'; ctx.font='700 9px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('정수기',x,y+48);
   let bx=432,by=602;
   ctx.fillStyle='rgba(0,0,0,0.08)'; ctx.beginPath(); ctx.ellipse(bx,by+46,24,5,0,0,Math.PI*2); ctx.fill();
   ctx.fillStyle='#6f4727'; roundRect(bx-24,by-32,48,76,4); ctx.fill();
   ctx.fillStyle='#8a5a33'; roundRect(bx-24,by-32,48,5,3); ctx.fill();
   const cols=['#c0392b','#2980b9','#27ae60','#f39c12','#8e44ad','#16a085'];
   for(let rrr=0;rrr<3;rrr++){ ctx.fillStyle='#5a3a20'; ctx.fillRect(bx-21,by-31+rrr*24+19,42,3); for(let i=0;i<5;i++){ ctx.fillStyle=cols[(i+rrr)%cols.length]; ctx.fillRect(bx-21+i*8.4, by-30+rrr*24, 7, 19); } }
-  ctx.fillStyle='rgba(70,110,90,0.6)'; ctx.font='700 9px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('책장',bx,by+52);
   ctx.font='22px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🪴', 40, 524); ctx.fillText('🪴', 420, 524);
 }
 function drawBackground(){
@@ -453,9 +461,10 @@ function draw(){
   cashiers.forEach(c=> person(c.x,c.y,'#8fd8a8','🧑‍💼',15));
   drawHater();
   drawPlayer();
-  ctx.fillStyle='#7a5c00'; ctx.font='700 10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('원장님', player.x, player.y+27);
+  ctx.fillStyle='#7a5c00'; ctx.font='700 10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('원장님', player.x, player.y+38);
   if(player.lock){ const lp=getP(player.lock); if(lp){ bubble(player.x,player.y-4, lp.state==='chuna'?'💪 추나 중...':'🌿 한약 조제 중...', lp.state==='chuna'?'rgba(180,110,40,0.9)':'rgba(40,130,60,0.9)'); } }
   floats.forEach(f=>{ ctx.globalAlpha=Math.max(0,f.life/55); ctx.fillStyle=f.c; ctx.font='700 14px sans-serif'; ctx.textAlign='center'; ctx.fillText(f.t,f.x,f.y); ctx.globalAlpha=1; });
+  coins.forEach(c=>{ ctx.globalAlpha=Math.max(0,Math.min(1,c.life/14)); ctx.font='16px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🪙',c.x,c.y); ctx.globalAlpha=1; });
   if(hater.active){ ctx.strokeStyle='rgba(224,49,49,'+(0.45+0.35*Math.sin(elapsed*0.22))+')'; ctx.lineWidth=8; ctx.strokeRect(4,4,W-8,H-8); ctx.fillStyle='#c92a2a'; ctx.font='700 13px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🚨 폭동! 원장이 다가가 👊 난타로 쫓아내세요!', W/2, 52); }
   if(powerActive()){ const a=0.4+0.45*Math.abs(Math.sin(elapsed*0.45)); ctx.strokeStyle='rgba(255,170,0,'+a+')'; ctx.lineWidth=10; ctx.strokeRect(5,5,W-10,H-10); ctx.fillStyle='#e8590c'; ctx.font='800 16px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('☕ 파워업! 속도 UP!', W/2, 74); }
   drawChunaUI();
@@ -508,17 +517,16 @@ function drawSeat(x,y){
   ctx.fillStyle='#3f5d4d'; ctx.fillRect(x-13,y+11,3,7); ctx.fillRect(x+10,y+11,3,7);
 }
 function drawPlayer(){
-  const x=player.x, y=player.y, r=17;
-  const bob=Math.sin(elapsed*0.2)*1.3, yy=y+bob;
+  const x=player.x, y=player.y, r=21;
+  const bob=Math.sin(elapsed*0.2)*1.4, yy=y+bob;
   ctx.fillStyle='rgba(255,216,77,0.16)'; ctx.beginPath(); ctx.arc(x,yy,r+9,0,Math.PI*2); ctx.fill();
   ctx.fillStyle='rgba(0,0,0,0.16)'; ctx.beginPath(); ctx.ellipse(x,y+r*0.95,r*0.9,r*0.36,0,0,Math.PI*2); ctx.fill();
   ctx.fillStyle='#fdfdff'; roundRect(x-r*0.74,yy+r*0.4,r*1.48,r*1.0,5); ctx.fill();
   ctx.strokeStyle='rgba(120,135,160,0.45)'; ctx.lineWidth=1.4; roundRect(x-r*0.74,yy+r*0.4,r*1.48,r*1.0,5); ctx.stroke();
-  ctx.fillStyle='#e03131'; ctx.fillRect(x-1.1,yy+18,2.4,6); ctx.fillRect(x-3.2,yy+20.2,6.6,2.4);
   ctx.fillStyle='#ffd84d'; ctx.beginPath(); ctx.arc(x,yy,r,0,Math.PI*2); ctx.fill();
   ctx.fillStyle='rgba(255,255,255,0.25)'; ctx.beginPath(); ctx.arc(x,yy-r*0.3,r*0.62,0,Math.PI*2); ctx.fill();
   ctx.lineWidth=2.4; ctx.strokeStyle='#fff'; ctx.beginPath(); ctx.arc(x,yy,r,0,Math.PI*2); ctx.stroke();
-  ctx.font='22px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🧑‍⚕️',x,yy+1);
+  ctx.font='27px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🧑‍⚕️',x,yy+1);
 }
 function drawChunaUI(){
   if(!chuna.active) return;
@@ -563,7 +571,7 @@ function submitScore(){
     .then(function(r){ if(!r.ok) throw 0; submitted=true; msg.textContent='✅ 랭킹에 등록됐어요!'; loadBoard(); })
     .catch(function(){ msg.textContent='❌ 등록 실패. 잠시 후 다시 시도해주세요.'; btn.disabled=false; });
 }
-function start(){ document.getElementById('startScreen').classList.add('hidden'); document.getElementById('ui').classList.remove('hidden'); document.getElementById('hire').classList.remove('hidden'); running=true; ended=false; startTime=performance.now(); haterSchedule=[ 28000+Math.random()*30000, 92000+Math.random()*46000 ]; trySpawn(); loop(); }
+function start(){ const cn=(document.getElementById('clinicInput').value||'').trim().slice(0,6); document.getElementById('signName').textContent=cn||'행복'; document.getElementById('signboard').classList.remove('hidden'); document.getElementById('startScreen').classList.add('hidden'); document.getElementById('ui').classList.remove('hidden'); document.getElementById('hire').classList.remove('hidden'); running=true; ended=false; startTime=performance.now(); haterSchedule=[ 28000+Math.random()*30000, 92000+Math.random()*46000 ]; trySpawn(); loop(); }
 function endGame(){ running=false; ended=true; submitted=false; const sb=document.getElementById('submitBtn'); if(sb) sb.disabled=false; document.getElementById('submitMsg').textContent=''; document.getElementById('endMoney').textContent=won(money); document.getElementById('endStats').textContent='🙆 진료 '+served+'명 · 😡 이탈 '+lost+'명 · ⭐ 평판 '+Math.round(reputation); document.getElementById('endScreen').classList.remove('hidden'); loadBoard(); }
 document.getElementById('startBtn').onclick=start;
 document.getElementById('restartBtn').onclick=()=>location.reload();
