@@ -229,7 +229,7 @@ function tryCollect(c){
   if(c.cd>0){ c.cd--; return; }
   let best=null;
   for(const p of patients){ if(p.state==='pay'){ if(!best||p.payWait>best.payWait) best=p; } }
-  if(best){ money+=best.fee; served++; addRep(best.herbal?REP_GAIN_HERB:best.chuna?REP_GAIN_CHUNA:REP_GAIN_REG); floatText('+'+won(best.fee),best.x,best.y-10,'#1f8f4e'); floatText('💰 ka-ching!',best.x,best.y-26,'#e8a33d'); spawnCoins(best.x,best.y-4); if(best.paySpot>=0){ payQueue[best.paySpot].taken=null; best.paySpot=-1; } best.state='leave'; c.cd=COLLECT_CD; }
+  if(best){ money+=best.fee; served++; addRep(best.herbal?REP_GAIN_HERB:best.chuna?REP_GAIN_CHUNA:REP_GAIN_REG); floatText('+'+won(best.fee),best.x,best.y-10,'#1f8f4e'); floatText('💰 아자스!',best.x,best.y-26,'#e8a33d'); spawnCoins(best.x,best.y-4); if(best.paySpot>=0){ payQueue[best.paySpot].taken=null; best.paySpot=-1; } best.state='leave'; c.cd=COLLECT_CD; }
 }
 
 function updateGuide(g){
@@ -526,7 +526,7 @@ function drawPlayer(){
   ctx.fillStyle='#ffd84d'; ctx.beginPath(); ctx.arc(x,yy,r,0,Math.PI*2); ctx.fill();
   ctx.fillStyle='rgba(255,255,255,0.25)'; ctx.beginPath(); ctx.arc(x,yy-r*0.3,r*0.62,0,Math.PI*2); ctx.fill();
   ctx.lineWidth=2.4; ctx.strokeStyle='#fff'; ctx.beginPath(); ctx.arc(x,yy,r,0,Math.PI*2); ctx.stroke();
-  ctx.font='27px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🧑‍⚕️',x,yy+1);
+  ctx.font='27px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🧑',x,yy+1);
 }
 function drawChunaUI(){
   if(!chuna.active) return;
