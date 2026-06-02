@@ -299,11 +299,11 @@ function update(){
   if(chuna.flash>0) chuna.flash--;
   if(herbGame.flash>0) herbGame.flash--;
   const nowE=performance.now()-startTime;
-  if(haterSchedule.length && nowE>=haterSchedule[0] && !hater.active && !chuna.active){ spawnHater(); haterSchedule.shift(); }
-  if(hater.active) addRep(-0.028);
+  if(haterSchedule.length && nowE>=haterSchedule[0] && !hater.active && !chuna.active && !herbGame.active){ spawnHater(); haterSchedule.shift(); }
+  if(hater.active && !chuna.active && !herbGame.active) addRep(-0.028);
   if(hater.flash>0) hater.flash--;
   document.getElementById('dpad').classList.toggle('show', chuna.active);
-  document.getElementById('bashBtn').classList.toggle('show', hater.active);
+  document.getElementById('bashBtn').classList.toggle('show', hater.active && !chuna.active && !herbGame.active);
   document.getElementById('money').innerHTML='💰 <b>'+won(money)+'</b>';
   document.getElementById('repval').textContent=Math.round(reputation);
   document.getElementById('repbar').style.width=reputation+'%';
@@ -465,7 +465,7 @@ function draw(){
   if(player.lock){ const lp=getP(player.lock); if(lp){ bubble(player.x,player.y-4, lp.state==='chuna'?'💪 추나 중...':'🌿 한약 조제 중...', lp.state==='chuna'?'rgba(180,110,40,0.9)':'rgba(40,130,60,0.9)'); } }
   floats.forEach(f=>{ ctx.globalAlpha=Math.max(0,f.life/55); ctx.fillStyle=f.c; ctx.font='700 14px sans-serif'; ctx.textAlign='center'; ctx.fillText(f.t,f.x,f.y); ctx.globalAlpha=1; });
   coins.forEach(c=>{ ctx.globalAlpha=Math.max(0,Math.min(1,c.life/14)); ctx.font='16px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🪙',c.x,c.y); ctx.globalAlpha=1; });
-  if(hater.active){ ctx.strokeStyle='rgba(224,49,49,'+(0.45+0.35*Math.sin(elapsed*0.22))+')'; ctx.lineWidth=8; ctx.strokeRect(4,4,W-8,H-8); ctx.fillStyle='#c92a2a'; ctx.font='700 13px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🚨 폭동! 원장이 다가가 👊 난타로 쫓아내세요!', W/2, 52); }
+  if(hater.active && !chuna.active && !herbGame.active){ ctx.strokeStyle='rgba(224,49,49,'+(0.45+0.35*Math.sin(elapsed*0.22))+')'; ctx.lineWidth=8; ctx.strokeRect(4,4,W-8,H-8); ctx.fillStyle='#c92a2a'; ctx.font='700 13px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🚨 폭동! 원장이 다가가 👊 난타로 쫓아내세요!', W/2, 52); }
   if(powerActive()){ const a=0.4+0.45*Math.abs(Math.sin(elapsed*0.45)); ctx.strokeStyle='rgba(255,170,0,'+a+')'; ctx.lineWidth=10; ctx.strokeRect(5,5,W-10,H-10); ctx.fillStyle='#e8590c'; ctx.font='800 16px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('☕ 파워업! 속도 UP!', W/2, 74); }
   drawChunaUI();
   drawHerbUI();
@@ -497,7 +497,7 @@ function drawHerbUI(){
   });
 }
 function drawHater(){
-  if(!hater.active) return;
+  if(!hater.active || chuna.active || herbGame.active) return;
   const ox=hater.flash>0?(Math.random()*6-3):0, oy=hater.flash>0?(Math.random()*6-3):0;
   const sx=hater.x+ox, sy=hater.y+oy;
   ctx.fillStyle='rgba(224,49,49,'+(0.16+0.1*Math.abs(Math.sin(elapsed*0.2)))+')'; ctx.beginPath(); ctx.arc(sx,sy,34,0,Math.PI*2); ctx.fill();
