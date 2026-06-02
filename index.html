@@ -155,7 +155,7 @@ let patients=[], guides=[], cashiers=[], floats=[], coins=[];
 let nextId=1, money=0, served=0, lost=0, elapsed=0, spawnTimer=0, running=false, reputation=30;
 let guideCount=0, cashierCount=0;
 const LIMIT_MS=180000; let startTime=0, ended=false;
-const player={x:200,y:610,speed:4.8,leading:null,cd:0,target:null,lock:null};
+const player={x:200,y:610,speed:5.5,leading:null,cd:0,target:null,lock:null};
 function mmss(ms){ const t=Math.max(0,Math.ceil(ms/1000)); const m=Math.floor(t/60), s=t%60; return m+':'+(s<10?'0':'')+s; }
 
 function won(n){ return '₩'+Math.round(n).toLocaleString('ko-KR'); }
