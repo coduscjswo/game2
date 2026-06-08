@@ -106,7 +106,11 @@
 <script>
 (function(){
 const cv=document.getElementById('game'), ctx=cv.getContext('2d');
-const W=cv.width, H=cv.height;
+const W=460, H=760;
+function fitCanvas(){ const dpr=Math.min(window.devicePixelRatio||1,2); const scale=Math.min(window.innerWidth/W, window.innerHeight/H); const cssW=Math.max(1,Math.round(W*scale)), cssH=Math.max(1,Math.round(H*scale)); cv.style.width=cssW+'px'; cv.style.height=cssH+'px'; cv.width=Math.round(cssW*dpr); cv.height=Math.round(cssH*dpr); ctx.setTransform(cv.width/W,0,0,cv.height/H,0,0); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high'; }
+fitCanvas();
+addEventListener('resize',fitCanvas);
+addEventListener('orientationchange',function(){ setTimeout(fitCanvas,250); });
 
 // ===== 레이아웃 =====
 const bedSlots=[{x:100,y:100},{x:250,y:100},{x:100,y:195},{x:250,y:195},{x:100,y:290},{x:250,y:290}];
@@ -611,7 +615,8 @@ function drawChunaUI(){
   }
 }
 
-function loop(){ if(!running) return; const steps=powerActive()?2:1; for(let s=0;s<steps;s++){ if(running) update(); } draw(); requestAnimationFrame(loop); }
+let _lastT=0, _acc=0; const _STEP=1000/60;
+function loop(now){ if(!running) return; if(now===undefined) now=performance.now(); if(!_lastT) _lastT=now; let delta=now-_lastT; _lastT=now; if(delta>250) delta=250; const simSpeed=powerActive()?2:1; _acc+=delta*simSpeed; let n=0; while(_acc>=_STEP && n<8){ if(running) update(); _acc-=_STEP; n++; } draw(); requestAnimationFrame(loop); }
 function supaHeaders(){ return { 'apikey':SUPA_KEY, 'Authorization':'Bearer '+SUPA_KEY, 'Content-Type':'application/json' }; }
 function escapeHtml(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 function medal(i){ return i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.'; }
