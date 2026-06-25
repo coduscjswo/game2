@@ -639,8 +639,8 @@ function submitScore(){
   const maxPlausible=served*FEE_HERB; if(money>MAX_LEGIT || money>maxPlausible || served<0 || money<0){ msg.textContent='⚠ 비정상 점수가 감지되어 랭킹에 등록되지 않았어요.'; return; }
   const btn=document.getElementById('submitBtn'); btn.disabled=true; msg.textContent='등록 중...';
   fetch(SUPA_URL+'/rest/v1/scores',{ method:'POST', headers:Object.assign(supaHeaders(),{ 'Prefer':'return=minimal' }), body:JSON.stringify({ name:name, score:Math.round(money) }) })
-    .then(function(r){ if(!r.ok) throw 0; submitted=true; msg.textContent='✅ 랭킹에 등록됐어요!'; loadBoard(); })
-    .catch(function(){ msg.textContent='❌ 등록 실패. 잠시 후 다시 시도해주세요.'; btn.disabled=false; });
+    .then(function(r){ return r.text().then(function(t){ if(!r.ok) throw new Error('HTTP '+r.status+' '+t); submitted=true; msg.textContent='✅ 랭킹에 등록됐어요!'; loadBoard(); }); })
+    .catch(function(e){ msg.textContent='❌ 등록 실패: '+((e&&e.message)||e); btn.disabled=false; });
 }
 function start(){ const cn=(document.getElementById('clinicInput').value||'').trim().slice(0,6); document.getElementById('signName').textContent=cn||'행복'; document.getElementById('signboard').classList.remove('hidden'); document.getElementById('startScreen').classList.add('hidden'); document.getElementById('ui').classList.remove('hidden'); document.getElementById('hire').classList.remove('hidden'); running=true; ended=false; startTime=performance.now(); haterSchedule=[ 28000+Math.random()*30000, 92000+Math.random()*46000 ]; trySpawn(); loop(); }
 function endGame(){ running=false; ended=true; submitted=false; const sb=document.getElementById('submitBtn'); if(sb) sb.disabled=false; document.getElementById('submitMsg').textContent=''; document.getElementById('endMoney').textContent=won(money); document.getElementById('endStats').textContent='🙆 진료 '+served+'명 · 😡 이탈 '+lost+'명 · ⭐ 평판 '+Math.round(reputation); document.getElementById('endScreen').classList.remove('hidden'); loadBoard(); }
